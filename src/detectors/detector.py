@@ -40,11 +40,11 @@ class TracknetV2Detector(object):
         _, self._transform = build_img_transforms(cfg)
 
         self._device = cfg['runner']['device']
-        if self._device!='cuda':
-            assert 0, 'device=cpu not supported'
-        if not torch.cuda.is_available():
-            assert 0, 'GPU NOT available'
         self._gpus  = cfg['runner']['gpus']
+        if self._device == 'cuda' and not torch.cuda.is_available():
+            raise RuntimeError('GPU NOT available')
+        if self._device not in ['cpu', 'cuda']:
+            raise ValueError('unsupported device: {}'.format(self._device))
 
         if model is None:
             self._model = build_model(cfg)
@@ -55,10 +55,11 @@ class TracknetV2Detector(object):
                 log.info('Checkpoint is not specified, so it is set as the best model in {}'.format(output_dir))
                 if not osp.exists(model_path):
                     FileNotFoundError('{} not found'.format(model_path))
-            checkpoint = torch.load(model_path)
+            checkpoint = torch.load(model_path, map_location=self._device)
             self._model.load_state_dict(checkpoint['model_state_dict'])
             self._model = self._model.to(self._device)
-            self._model = nn.DataParallel(self._model, device_ids=self._gpus)
+            if self._device == 'cuda':
+                self._model = nn.DataParallel(self._model, device_ids=self._gpus)
         else:
             self._model = model
 
@@ -105,4 +106,3 @@ class TracknetV2Detector(object):
                     hms_vis[bid][eid].append({'hm': hm, 'scale': scale, 'trans': trans})
 
         return results, hms_vis
-

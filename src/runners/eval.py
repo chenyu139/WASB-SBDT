@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from dataloaders import build_dataloader
 from detectors import build_detector
 from trackers import build_tracker
-from utils import mkdir_if_missing, draw_frame, gen_video, Center, Evaluator
+from utils import mkdir_if_missing, draw_frame, Center, Evaluator
 
 from .base import BaseRunner
 
@@ -79,6 +79,11 @@ def inference_video(detector,
     cm_gt   = plt.get_cmap('Greens', len(result_dict))
 
     fp1_im_list = []
+    vis_gt_traj = None
+    vis_pred_traj = None
+    vis_video_path = None
+    vis_video_writer = None
+    save_vis_frames = cfg['runner'].get('save_vis_frames', True)
     cnt = 0
     for cnt, img_path in enumerate(result_dict.keys()):
         xy_pred    = (result_dict[img_path]['x'], result_dict[img_path]['y'])
@@ -102,32 +107,40 @@ def inference_video(detector,
             vis_frame_path = osp.join(vis_frame_dir, osp.basename(img_path)) if vis_frame_dir is not None else None
             vis_gt         = cv2.imread(img_path)
             vis_pred       = cv2.imread(img_path)
+            if vis_gt_traj is None:
+                vis_gt_traj = np.zeros_like(vis_gt)
+                vis_pred_traj = np.zeros_like(vis_pred)
 
-            for cnt2, img_path2 in enumerate(result_dict.keys()):
-                if cnt2 > cnt:
-                    break
+            color_pred = (int(cm_pred(cnt)[2]*255), int(cm_pred(cnt)[1]*255), int(cm_pred(cnt)[0]*255))
+            color_gt   = (int(cm_gt(cnt)[2]*255), int(cm_gt(cnt)[1]*255), int(cm_gt(cnt)[0]*255))
 
-                x_pred = result_dict[img_path2]['x']
-                y_pred = result_dict[img_path2]['y']
-                visi_pred  = result_dict[img_path2]['visi']
-                score_pred = result_dict[img_path2]['score']
-                
-                center_gt = gt[img_path2]
+            if center_gt is not None:
+                vis_gt_traj = draw_frame(vis_gt_traj,
+                                         center=center_gt,
+                                         color=color_gt,
+                                         radius=8)
+            vis_pred_traj = draw_frame(vis_pred_traj,
+                                       center=Center(is_visible=visi_pred, x=x_pred, y=y_pred),
+                                       color=color_pred,
+                                       radius=8)
 
-                color_pred = (int(cm_pred(cnt2)[2]*255), int(cm_pred(cnt2)[1]*255), int(cm_pred(cnt2)[0]*255))
-                color_gt   = (int(cm_gt(cnt2)[2]*255), int(cm_gt(cnt2)[1]*255), int(cm_gt(cnt2)[0]*255))
-                vis_gt     = draw_frame(vis_gt, 
-                                    center = center_gt, 
-                                    color = color_gt,
-                                    radius=8)
-
-                vis_pred   = draw_frame(vis_pred, 
-                                    center = Center(is_visible=visi_pred, x=x_pred, y=y_pred), 
-                                    color = color_pred,
-                                    radius=8)
+            mask_gt = np.any(vis_gt_traj > 0, axis=2)
+            mask_pred = np.any(vis_pred_traj > 0, axis=2)
+            vis_gt[mask_gt] = vis_gt_traj[mask_gt]
+            vis_pred[mask_pred] = vis_pred_traj[mask_pred]
 
             vis = np.hstack((vis_gt, vis_pred))
-            cv2.imwrite(vis_frame_path, vis)
+            if vis_video_writer is None:
+                vis_video_path = '{}.mp4'.format(vis_frame_dir)
+                vis_video_writer = cv2.VideoWriter(
+                    vis_video_path,
+                    cv2.VideoWriter_fourcc(*'mp4v'),
+                    25.0,
+                    (vis.shape[1], vis.shape[0]),
+                )
+            vis_video_writer.write(vis)
+            if save_vis_frames:
+                cv2.imwrite(vis_frame_path, vis)
 
         if vis_traj_path is not None:
             color_pred = (int(cm_pred(cnt)[2]*255), int(cm_pred(cnt)[1]*255), int(cm_pred(cnt)[0]*255))
@@ -137,9 +150,8 @@ def inference_video(detector,
                                                color_gt=color_gt,
                         )
 
-    if vis_frame_dir is not None:
-        video_path = '{}.mp4'.format(vis_frame_dir)
-        gen_video(video_path, vis_frame_dir, fps=25.0)
+    if vis_video_writer is not None:
+        vis_video_writer.release()
 
     if evaluator is not None:
         evaluator.print_results(with_ap=False)
@@ -230,4 +242,3 @@ class VideosInferenceRunner(BaseRunner):
                 'accuracy': evaluator.accuracy, 
                 'rmse': evaluator.rmse, 
                 'fp1_im_list_dict': fp1_im_list_dict}
-

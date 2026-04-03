@@ -8,7 +8,7 @@ from utils import mkdir_if_missing
 
 log = logging.getLogger(__name__)
 
-@hydra.main(version_base=None, config_name='root', config_path='configs')
+@hydra.main(version_base=None, config_name='eval', config_path='configs')
 def main(
         cfg: DictConfig
 ):
@@ -23,4 +23,3 @@ def main(
 
 if __name__ == "__main__":
     main()
-

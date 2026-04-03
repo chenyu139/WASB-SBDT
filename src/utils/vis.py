@@ -33,8 +33,10 @@ def gen_video(video_path,
               fourcc='mp4v'
 ):
 
-    fnames = os.listdir(vis_dir)
+    fnames = [fname for fname in os.listdir(vis_dir) if osp.isfile(osp.join(vis_dir, fname))]
     fnames.sort()
+    if len(fnames) == 0:
+        return
     h,w,_   = cv2.imread(osp.join(vis_dir, fnames[0])).shape
     im_size = (int(w*resize), int(h*resize))
     fourcc  = cv2.VideoWriter_fourcc(*fourcc)
@@ -45,4 +47,4 @@ def gen_video(video_path,
         im      = cv2.imread(im_path)
         im = cv2.resize(im, None, fx=resize, fy=resize)
         out.write(im)
-
+    out.release()

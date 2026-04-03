@@ -1,5 +1,5 @@
 name: volleyball
-root_dir: /root/datasets/volleyball
+root_dir: ${hydra:runtime.cwd}/../datasets/volleyball
 frame_dirname: videos
 csv_dirname: volleyball_ball_annotation 
 ext: '.jpg'

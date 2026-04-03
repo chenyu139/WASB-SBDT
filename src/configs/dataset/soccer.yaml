@@ -1,5 +1,5 @@
 name: soccer
-root_dir: /root/datasets/soccer
+root_dir: ${hydra:runtime.cwd}/../datasets/soccer
 video_dirname: videos
 frame_dirname: frames
 anno_dirname: annos
@@ -17,4 +17,3 @@ test:
     - ID-5
     - ID-6
   num_clip_ratio: 1.0
-

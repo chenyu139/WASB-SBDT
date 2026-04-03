@@ -1,5 +1,5 @@
 name: badminton
-root_dir: /root/datasets/badminton
+root_dir: ${hydra:runtime.cwd}/../datasets/badminton
 video_dirname: video
 frame_dirname: frame
 csv_dirname: csv
