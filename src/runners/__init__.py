@@ -6,6 +6,7 @@ from hydra.core.hydra_config import HydraConfig
 # from .train_and_test import Trainer
 from .eval import VideosInferenceRunner
 from .extract_frame import ExtractFrameRunner
+from .realtime import RealtimeInferenceRunner
 
 log = logging.getLogger(__name__)
 
@@ -13,6 +14,7 @@ __runner_factory = {
     #'train': Trainer,
     'eval': VideosInferenceRunner,
     'extract_frame': ExtractFrameRunner,
+    'realtime': RealtimeInferenceRunner,
         }
 
 def select_runner(
@@ -22,4 +24,3 @@ def select_runner(
     if not runner_name in __runner_factory.keys():
         raise KeyError('unknown runner: {}'.format(runner_name))
     return __runner_factory[runner_name](cfg)
-

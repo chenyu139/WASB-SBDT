@@ -9,11 +9,15 @@ from utils.image import get_affine_transform, affine_transform
 class TracknetV2Postprocessor(object):
     def __init__(self, cfg):
         #print(cfg['detector']['postprocessor'])
-        self._score_threshold = cfg['detector']['postprocessor']['score_threshold']
+        post_cfg = cfg['detector']['postprocessor']
+        self._score_threshold = post_cfg['score_threshold']
+        self._candidate_score_threshold = post_cfg.get('candidate_score_threshold', self._score_threshold)
+        self._upper_region_limit = post_cfg.get('upper_region_limit', 0.0)
+        self._upper_region_score_threshold = post_cfg.get('upper_region_score_threshold', self._score_threshold)
         self._model_name      = cfg['model']['name']
-        self._scales          = cfg['detector']['postprocessor']['scales']
-        self._blob_det_method = cfg['detector']['postprocessor']['blob_det_method']
-        self._use_hm_weight   = cfg['detector']['postprocessor']['use_hm_weight']
+        self._scales          = post_cfg['scales']
+        self._blob_det_method = post_cfg['blob_det_method']
+        self._use_hm_weight   = post_cfg['use_hm_weight']
         #self._xy_comp_method  = cfg['detector']['postprocessor']['xy_comp_method']
         #print(self._score_threshold, self._scales)
 
@@ -44,11 +48,17 @@ class TracknetV2Postprocessor(object):
         return xy, visi, max_blob_score
     """
 
+    def _score_threshold_for_y(self, y, hm_h):
+        if self._upper_region_limit > 0 and y < self._upper_region_limit * hm_h:
+            return self._upper_region_score_threshold
+        return self._score_threshold
+
     def _detect_blob_concomp(self, hm):
         xys, scores = [], []
-        if np.max(hm) > self._score_threshold:
+        det_threshold = min(self._candidate_score_threshold, self._score_threshold, self._upper_region_score_threshold)
+        if np.max(hm) > det_threshold:
             visi = True
-            th, hm_th        = cv2.threshold(hm, self._score_threshold, 1, cv2.THRESH_BINARY)
+            th, hm_th        = cv2.threshold(hm, det_threshold, 1, cv2.THRESH_BINARY)
             n_labels, labels = cv2.connectedComponents(hm_th.astype(np.uint8))
             for m in range(1,n_labels):
                 ys, xs = np.where( labels==m )
@@ -63,6 +73,9 @@ class TracknetV2Postprocessor(object):
                     y      = np.sum( np.array(ys) ) / ws.shape[0]
                     #print(xs, ys)
                     #print(score, x, y)
+                peak_score = np.max(ws)
+                if peak_score < self._score_threshold_for_y(y, hm.shape[0]):
+                    continue
                 xys.append( np.array([x, y]) )
                 scores.append( score)
         return xys, scores
@@ -72,12 +85,17 @@ class TracknetV2Postprocessor(object):
         hm_ori       = hm.copy()
         hm_h, hm_w   = hm.shape
         map_x, map_y = np.meshgrid(np.linspace(1, hm_w, hm_w), np.linspace(1, hm_h, hm_h))
+        det_threshold = min(self._candidate_score_threshold, self._score_threshold, self._upper_region_score_threshold)
         while True:
             cy, cx = np.unravel_index(np.argmax(hm), hm.shape)
-            if hm[cy,cx] <= self._score_threshold:
+            peak_score = hm[cy, cx]
+            if peak_score <= det_threshold:
                 break
             #dist_map = ((map_y - cy)**2) + ((map_x - cx)**2)
             dist_map = ((map_y - (cy+1))**2) + ((map_x - (cx+1))**2)
+            if peak_score < self._score_threshold_for_y(cy, hm_h):
+                hm[dist_map<=sigma**2] = 0.
+                continue
             ys, xs   = np.where( dist_map<=sigma**2)
             ws       = hm_ori[dist_map <= sigma**2]
             if self._use_hm_weight:
@@ -131,4 +149,3 @@ class TracknetV2Postprocessor(object):
 
         #print(results)
         return results
-

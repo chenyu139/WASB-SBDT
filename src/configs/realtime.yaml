@@ -1,0 +1,19 @@
+defaults:
+        - runner: realtime
+        - dataset: soccer
+        - model: wasb
+        - dataloader: default
+        - detector: tracknetv2
+        - transform: default
+        - tracker: online
+        - _self_
+hydra:
+  run:
+    dir: ${hydra:runtime.cwd}/../outputs/${hydra.job.name}/${now:%Y-%m-%d_%H-%M-%S}
+detector:
+  postprocessor:
+    score_threshold: 0.32
+tracker:
+  max_disp: 360
+output_dir:
+seed: 1234

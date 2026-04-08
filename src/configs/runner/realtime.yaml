@@ -1,0 +1,30 @@
+name: realtime
+device: cuda
+gpus: [0]
+source: 0
+start_frame: 0
+stride: 1
+display: False
+display_wait_ms: 1
+log_interval: 50
+max_frames: -1
+save_video: True
+draw_detection: True
+print_result: True
+vis_resize: 1.0
+output_fps: 25.0
+trajectory_smoothing_alpha: 0.78
+interpolate_max_gap: 2
+interpolate_max_disp: 220.0
+interpolate_min_score: 1.0
+max_track_jump: 170.0
+max_jump_score_threshold: 6.5
+adaptive_jump_scale: 1.25
+adaptive_jump_bias: 35.0
+prediction_min_speed: 70.0
+prediction_error_base: 110.0
+prediction_error_scale: 0.75
+motion_score_threshold: 5.0
+output_csv_path:
+output_jsonl_path:
+output_video_path:
